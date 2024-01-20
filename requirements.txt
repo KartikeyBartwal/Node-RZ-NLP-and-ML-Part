@@ -2,7 +2,6 @@ uvicorn
 fastapi
 numpy
 pandas
-model
 vector_store
 NLP_model
 json
@@ -11,3 +10,4 @@ transformers
 sklearn
 torch
 chainlit
+langchain
