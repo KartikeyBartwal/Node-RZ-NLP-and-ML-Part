@@ -8,3 +8,4 @@ scikit-learn
 torch
 chainlit
 langchain
+sentence_transformers
