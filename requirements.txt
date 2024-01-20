@@ -4,7 +4,7 @@ numpy
 pandas
 nltk
 transformers
-sklearn
+scikit-learn
 torch
 chainlit
 langchain
