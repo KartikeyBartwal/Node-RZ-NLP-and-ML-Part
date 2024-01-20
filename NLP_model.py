@@ -1,39 +1,42 @@
 import numpy as np 
 import pandas as pd 
+from vector_store import VectorStore
+from nltk.tokenize import word_tokenize
+import string 
+import nltk
+from nltk.corpus import stopwords 
+from nltk.stem import PorterStemmer
+from nltk.tokenize import word_tokenize
+from transformers import AutoTokenizer, AutoModel 
+from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
+import torch 
+import sys
 
-# clasas for vector embedding and similarity search
-class VectorStore:
-    def __init__(self):
-        self.vector_data = {}
-        self.vector_index = {}
 
-    def add_vector(self, vector_id, vector):
-        self.vector_data[vector_id] = vector
-        self._update_index(vector_id, vector)
+nltk.download('stopwords')
+nltk.download('punkt')
 
-    def get_vector(self, vector_id):
-        return self.vector_data.get(vector_id)
 
-    def _update_index(self, vector_id, vector):
-        # In this simple example, we use brute-force cosine similarity for indexing
-        for existing_id, existing_vector in self.vector_data.items():
-            similarity = np.dot(vector, existing_vector) / (np.linalg.norm(vector) * np.linalg.norm(existing_vector))
-            if existing_id not in self.vector_index:
-                self.vector_index[existing_id] = {}
-            self.vector_index[existing_id][vector_id] = similarity
+def basic_cleaning(text):
+    lowercase_text = text.lower()
+    no_punctuation_text = ''.join(char for char in lowercase_text if char not in string.punctuation)
+    return no_punctuation_text
 
-    def find_similar_vectors(self, query_vector, num_results=5):
-        results = []
-        for vector_id, vector in self.vector_data.items():
-            similarity = np.dot(query_vector, vector) / (np.linalg.norm(query_vector) * np.linalg.norm(vector))
-            results.append((vector_id, similarity))
+def remove_stopwords(text):
+    words = word_tokenize(text)
+    stop_words = set(stopwords.words('english'))
+    filtered_words = [word for word in words if word.lower() not in stop_words]
+    filtered_text = ' '.join(filtered_words)
+    return filtered_text
 
-        # Sort by similarity in descending order
-        results.sort(key=lambda x: x[1], reverse=True)
 
-        # Return the top N results
-        return results[:num_results]
-
+def stemming(text):
+    words = word_tokenize(text)
+    porter_stemmer = PorterStemmer()
+    stemmed_words = [porter_stemmer.stem(word) for word in words]
+    stemmed_text = ' '.join(stemmed_words)
+    return stemmed_text
 
 
 class NLP_Model:
@@ -45,20 +48,36 @@ class NLP_Model:
     vector_store = None 
     word_to_index = {}
     case_vectors = {}
+    vector_store = None 
 
     def __init__(self):
         # loading the dataset
-        df = pd.read_excel("optimal and final website x flow.json.xlsx")
+        df = pd.read_excel("file_dataset.xlsx")
         # indexing
         df.dropna(axis = 0 , inplace = True)
-        
+        # print("Columns of the dataset:" , df.columns)
+
+        # preprocessing on the training dataset
         for index, row in df.iterrows():
-            self.flow_index[index] = row["flow_json"]
-            self.website_index[index] = row["website"]
-            self.cases.append(row['website'])
+            details = row["Website"]
+            print("TEXT BEFORE:" , details)
+            details = basic_cleaning(details)
+            details = remove_stopwords(details)
+            details = stemming(details)
+
+            print("TEXT AFTER:" , details)
+
+            df.at[index, "Website"] = details
+
+
+        for index, row in df.iterrows():
+            self.flow_index[index] = row["flow.json"]
+            self.website_index[row["Website"]] = index
+            self.cases.append(row['Website'])
         
+
         # class for vector embedding and similarity search
-        vector_store = VectorStore()
+        self.vector_store = VectorStore()
 
         # tokenization and vocabulary creation
         for curr_web in self.cases:
@@ -72,12 +91,11 @@ class NLP_Model:
         
         # assign unique indices to words in the vocabulary
         self.word_to_index = {word: i for i, word in enumerate(self.vocabulary)}
-
         # vectorization
         for curr_case in self.cases:
             try:
                 tokens = curr_case.lower().split()
-                vector = np.zeroes(len(self.vocabulary))
+                vector = np.zeros(len(self.vocabulary))
                 for token in tokens:
                     vector[self.word_to_index[token]] += 1
                 self.case_vectors[curr_case] = vector
@@ -87,22 +105,114 @@ class NLP_Model:
                 
         # storing in VectorStore
             for curr_web, vector in self.case_vectors.items():
-                vector_store.add_vector(curr_web , vector)
+                self.vector_store.add_vector(curr_web , vector)
 
 
-    def GetJSON(prompt):
-        query_vector = np.zeroes(len(self.vocabulary))
-        query_tokens = self.query_sentence.lower().split()
+    def GetJSON(self , prompt):
+        print(self.word_to_index)
+        print("GETJSON started")
+
+        query_vector = np.zeros(len(self.vocabulary))
+
+        print("query vector created")
+
+        query_tokens = prompt.lower().split()
+
+        print("Done with query tokens") 
+
         for token in query_tokens:
-            if(token in self.query_tokens):
-                self.query_vector[self.word_to_index[token]] += 1
+            if(token not in self.vocabulary):
+                continue
+            query_vector[self.word_to_index[token]] += 1
 
-        similar_sentences = self.vector_store.find_similar_vectors(query_vector , num_results = 1) 
+
+        print("Done with query_tokens")
+
+        similar_sentences = self.vector_store.find_similar_vectors(query_vector , num_results = 5)
+       
+        # # general backend (if similarities are barely there)
+        # if(similar_sentences[0][1] <= 31):
+        #     return self.flow_index["12"] 
         
-        print(similar_sentences)
+        for search in similar_sentences:
+            print(search[1])
+            print()
+        print("similar searches are done")
+        print()
+        print()
+
+        output_json = self.flow_index[self.website_index[similar_sentences[0][0]]]
+        return output_json
 
 
+class NLP_Model_BERT:
+    df = None 
+    flow_index = {}
+    website_index = {}
+    vector_store = None 
+    word_to_index = {}
+    universal_embeddings = None 
+    model = None 
+
+    def __init__(self):
+        # loading the dataset
+        df = pd.read_excel("file_dataset.xlsx")
+        # indexing
+        df.dropna(axis = 0 , inplace = True)
+
+        # preprocessing on the training dataset
+        for index, row in df.iterrows():
+            details = row["Website"]
+            print("TEXT BEFORE:" , details)
+            details = basic_cleaning(details)
+            details = remove_stopwords(details)
+            details = stemming(details)
+
+            print("TEXT AFTER:" , details)
+
+            df.at[index, "Website"] = details
+
+        data_samples = []
+        for index, row in df.iterrows():
+            self.flow_index[index] = row["flow.json"]
+            self.website_index[row["Website"]] = index
+            data_samples.append(row["Website"])
+        
+        # ATokenizers and Vectorization of natural language data
+        self.model = SentenceTransformer('bert-base-nli-mean-tokens')
+        #encoding
+        self.universal_embeddings = self.model.encode(data_samples)
+        print("Shape of the universal embedding: universal_embeddings.shape")
+        print(self.universal_embeddings)
 
 
+    def GetJSON(self , prompt):
+        # get the vectorized representation of the input prompt
+        input_prompt_vector = self.model.encode(prompt)
+        similarity_scores = cosine_similarity(
+            [input_prompt_vector] , 
+            self.universal_embeddings
+        )
+
+        scores = similarity_scores[0]
+        
+        index = 0
+        best_index = 0
+        max_score = -sys.float_info.max
+        for score in scores:
+            print("Cosine Similarity Score:" , score)
+            if(score > max_score):
+                max_score = score
+                best_index = index 
+            index += 1
+
+        best_index = best_index + 1
+        print("Best Score:" , max_score)
+        print("Best Index:" , best_index)
+        print("SEARCH HAS BEEN PRINTED")
+        
+        # find the index having highest cosine similarity
+        output_json = self.flow_index[best_index]
+        return output_json
 
 

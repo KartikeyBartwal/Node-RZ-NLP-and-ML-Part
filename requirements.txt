@@ -1,0 +1,14 @@
+uvicorn
+fastapi
+numpy
+pandas
+langchain
+model
+vector_store
+NLP_model
+json
+nltk
+transformers
+sklearn
+torch
+chainlit

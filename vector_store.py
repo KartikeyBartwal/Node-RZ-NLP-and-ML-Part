@@ -1,5 +1,8 @@
 import numpy as np
 
+
+
+# Created but later changed to BERT sentence transformers due to its better efficiency
 class VectorStore:
     def __init__(self):
         self.vector_data = {}  
@@ -31,7 +34,5 @@ class VectorStore:
 
         # Return the top N results
         return results[:num_results]
-
-
 
 
