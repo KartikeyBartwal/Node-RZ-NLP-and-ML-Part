@@ -2,9 +2,6 @@ uvicorn
 fastapi
 numpy
 pandas
-vector_store
-NLP_model
-json
 nltk
 transformers
 sklearn
