@@ -10,3 +10,4 @@ chainlit
 langchain
 sentence_transformers
 openpyxl
+replicate
