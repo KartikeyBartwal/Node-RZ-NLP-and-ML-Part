@@ -7,11 +7,11 @@ import nltk
 from nltk.corpus import stopwords 
 from nltk.stem import PorterStemmer
 from nltk.tokenize import word_tokenize
-from transformers import AutoTokenizer, AutoModel 
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-import torch 
 import sys
+import os 
+import psutil
 
 
 nltk.download('stopwords')
@@ -156,19 +156,19 @@ class NLP_Model_BERT:
 
     def __init__(self):
         # loading the dataset
-        df = pd.read_excel("file_dataset.xlsx")
+        df = pd.read_excel("flow samples for training.xlsx")
         # indexing
         df.dropna(axis = 0 , inplace = True)
 
         # preprocessing on the training dataset
         for index, row in df.iterrows():
             details = row["Website"]
-            print("TEXT BEFORE:" , details)
+            # print("TEXT BEFORE:" , details)
             details = basic_cleaning(details)
             details = remove_stopwords(details)
             details = stemming(details)
 
-            print("TEXT AFTER:" , details)
+            # print("TEXT AFTER:" , details)
 
             df.at[index, "Website"] = details
 
@@ -177,13 +177,23 @@ class NLP_Model_BERT:
             self.flow_index[index] = row["flow.json"]
             self.website_index[row["Website"]] = index
             data_samples.append(row["Website"])
+
+        process = psutil.Process()
+        print("checking transformer : ")
+        print(process.memory_info().rss)
         
         # ATokenizers and Vectorization of natural language data
-        self.model = SentenceTransformer('bert-base-nli-mean-tokens')
+        self.model = SentenceTransformer('sentence-transformers/paraphrase-MiniLM-L6-v2')
+
+        process = psutil.Process()
+        print("checking transformer : ")
+        print(process.memory_info().rss)
+        
         #encoding
         self.universal_embeddings = self.model.encode(data_samples)
-        print("Shape of the universal embedding: universal_embeddings.shape")
-        print(self.universal_embeddings)
+        # print("Shape of the universal embedding: universal_embeddings.shape")
+        # print(self.universal_embeddings)
+
 
 
     def GetJSON(self , prompt):
@@ -200,19 +210,22 @@ class NLP_Model_BERT:
         best_index = 0
         max_score = -sys.float_info.max
         for score in scores:
-            print("Cosine Similarity Score:" , score)
+            # print("Cosine Similarity Score:" , score)
             if(score > max_score):
                 max_score = score
                 best_index = index 
             index += 1
 
         best_index = best_index + 1
-        print("Best Score:" , max_score)
-        print("Best Index:" , best_index)
-        print("SEARCH HAS BEEN PRINTED")
+        # print("Best Score:" , max_score)
+        # print("Best Index:" , best_index)
+        # print("SEARCH HAS BEEN PRINTED")
         
         # find the index having highest cosine similarity
         output_json = self.flow_index[best_index]
         return output_json
 
 
+if(__name__ == "main"):
+    model = SentenceTransformer('bert-base-nli-mean-tokens')
+    
