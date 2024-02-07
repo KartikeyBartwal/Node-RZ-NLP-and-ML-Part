@@ -52,7 +52,7 @@ class NLP_Model:
 
     def __init__(self):
         # loading the dataset
-        df = pd.read_excel("file_dataset.xlsx")
+        df = pd.read_excel("flow samples for training.xlsx")
         # indexing
         df.dropna(axis = 0 , inplace = True)
         # print("Columns of the dataset:" , df.columns)
