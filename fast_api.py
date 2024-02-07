@@ -50,10 +50,10 @@ def output_json(prompt  : str):
 
 
 #    ################ Reserved for the fine tuning and instruction tuning of the large language models
-    llm = LoadModel.use_hosting()    
-    output = LoadModel.use_model(llm , prompt)
+    # llm = LoadModel.use_hosting()    
+    # output = LoadModel.use_model(llm , prompt)
 #     ################ Reserved for the fine tuning and instruction tuning of the large language models
-    print("*" * 50)
+    # print("*" * 50)
 
     nlp_model = NLP_Model_BERT()
     output = nlp_model.GetJSON(prompt)
