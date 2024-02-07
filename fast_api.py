@@ -1,16 +1,11 @@
 import uvicorn
 from fastapi import FastAPI
-import numpy as np 
-import pandas as pd
-import os
-from langchain_community.llms import Replicate
-from model import LoadModel
-from vector_store import VectorStore
-from NLP_model import NLP_Model
 from NLP_model import NLP_Model_BERT
 from NLP_model import remove_stopwords
 from NLP_model import stemming
 import json
+import os 
+import psutil 
 
 app = FastAPI()
 load_model = None 
@@ -36,8 +31,13 @@ def index():
     return {"message" : "API Loaded "}
 
 
+
 @app.get('/output/')
 def output_json(prompt  : str):
+
+    process = psutil.Process()
+    print("the summary of the memory usage: ")
+    print(process.memory_info().rss)
 
     prompt = prompt 
     print(prompt)
@@ -47,7 +47,6 @@ def output_json(prompt  : str):
 
     prompt = remove_stopwords(prompt)
     prompt = stemming(prompt)
-
 
 #    ################ Reserved for the fine tuning and instruction tuning of the large language models
     # llm = LoadModel.use_hosting()    
@@ -60,6 +59,8 @@ def output_json(prompt  : str):
     
 #     print(json.load(output))
 
+    print("the summary of the memory usage: ")
+    print(process.memory_info().rss)
     return json.loads(output)
 
     # return {"prompt: " : prompt}
